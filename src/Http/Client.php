@@ -14,7 +14,6 @@ class Client{
     public function __construct($guzzleClient){
 
         $this->guzzleClient = $guzzleClient;
-        $this->baseUrl = $baseUrl;
 
     }
 

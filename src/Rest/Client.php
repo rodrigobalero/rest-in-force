@@ -47,10 +47,17 @@ class Client{
     }
 
     /**
-    *   Performs a SOQL Query
+    *   Performs a SOQL Query and loop to retrive all results
+    *   so the best pratice is use LIMIT in your query
     *   @param String $query       SOQL Query string
     **/
-    public function query($query){
+    public function query($query, $nextReq = null){
+
+        if ( ! empty($nextReq)) {
+            $url = $this->baseUrl . '/' . $nextReq;
+        } else {
+            $url = $this->baseUrl . '/services/data/v37.0/query/?q=' . urlencode($query);
+        }
 
         $url = $this->getUrl("/query/");
 
@@ -66,7 +73,16 @@ class Client{
 
         $response = json_decode($this->httpClient->request("GET",$url,$params)->getResposeBody(),true);
 
-        return $response;
+        $results = $response['records'];
+
+        if (!$response['done']){
+            $next_req = $this->query(null,substr($response['nextRecordsUrl'],1));
+            if (!empty($next_req)){
+                $results = array_merge($results,$next_req);
+            }
+        }
+
+        return $results;
 
     }
 
