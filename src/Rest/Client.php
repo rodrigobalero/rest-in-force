@@ -15,9 +15,9 @@ class Client{
     private $apiVersion = "v42.0";
 
     /**
-    *	@param GuzzleHttpObject $httpClient     Guzzle HTTP Object
+    *   @param GuzzleHttpObject $httpClient     Guzzle HTTP Object
     *   @param String $baseUrl      SalesForce Base URL
-	**/
+    **/
     public function __construct($httpClient, $baseUrl){
 
         $this->httpClient = $httpClient;
@@ -51,15 +51,13 @@ class Client{
     *   so the best pratice is use LIMIT in your query
     *   @param String $query       SOQL Query string
     **/
-    public function query($query, $nextReq = null){
+    public function query($query){
 
-        if ( ! empty($nextReq)) {
+        /*if ( ! empty($nextReq)) {
             $url = $this->baseUrl . '/' . $nextReq;
-        } else {
-            $url = $this->baseUrl . '/services/data/v37.0/query/?q=' . urlencode($query);
-        }
-
-        $url = $this->getUrl("/query/");
+        } else {*/
+            $url = $this->baseUrl . '/services/data/'.$this->apiVersion.'/query/?q=' . urlencode($query);
+       //}
 
         $params = [
             'headers' => [
@@ -71,18 +69,44 @@ class Client{
             "debug"=>false,
         ];
 
-        $response = json_decode($this->httpClient->request("GET",$url,$params)->getResposeBody(),true);
+        echo "Doing the query request.".PHP_EOL;
+
+        $response = $this->executeQuery($url, $params);
 
         $results = $response['records'];
 
-        if (!$response['done']){
-            $next_req = $this->query(null,substr($response['nextRecordsUrl'],1));
-            if (!empty($next_req)){
-                $results = array_merge($results,$next_req);
+        while(!$response['done']){
+
+            echo "doing the additional request.".PHP_EOL;
+
+            $nextRequest = $response['nextRecordsUrl'];
+
+            if (!empty($nextRequest)){
+
+                $url = $this->baseUrl . '/' . $nextRequest;
+
+                $response = $this->executeQuery($url, $params);
+
+                $results = array_merge($results,$response['records']);
+
             }
+
         }
 
+        echo "Results count: ".count($results);
+
+        echo PHP_EOL;
+
         return $results;
+
+    }
+
+
+    public function executeQuery($url, $params){
+
+        $response = json_decode($this->httpClient->request("GET",$url,$params)->getResposeBody(),true);
+
+        return $response;
 
     }
 
