@@ -53,11 +53,8 @@ class Client{
     **/
     public function query($query){
 
-        /*if ( ! empty($nextReq)) {
-            $url = $this->baseUrl . '/' . $nextReq;
-        } else {*/
-            $url = $this->baseUrl . '/services/data/'.$this->apiVersion.'/query/?q=' . urlencode($query);
-       //}
+
+        $url = $this->baseUrl . '/services/data/'.$this->apiVersion.'/query/?q=' . urlencode($query);
 
         $params = [
             'headers' => [
@@ -69,15 +66,11 @@ class Client{
             "debug"=>false,
         ];
 
-        echo "Doing the query request.".PHP_EOL;
-
         $response = $this->executeQuery($url, $params);
 
         $results = $response['records'];
 
         while(!$response['done']){
-
-            echo "doing the additional request.".PHP_EOL;
 
             $nextRequest = $response['nextRecordsUrl'];
 
@@ -92,10 +85,6 @@ class Client{
             }
 
         }
-
-        echo "Results count: ".count($results);
-
-        echo PHP_EOL;
 
         return $results;
 
