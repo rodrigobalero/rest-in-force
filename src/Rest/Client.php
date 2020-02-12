@@ -14,6 +14,10 @@ class Client{
 
     private $apiVersion = "v42.0";
 
+    private $nextRecordsUrl;
+
+    private $query;
+
     /**
     *   @param GuzzleHttpObject $httpClient     Guzzle HTTP Object
     *   @param String $baseUrl      SalesForce Base URL
@@ -47,26 +51,27 @@ class Client{
     }
 
     /**
-    *   Performs a SOQL Query and loop to retrive all results
+    *   Performs a SOQL Query and loop to retrive all paginated results
     *   so the best pratice is use LIMIT in your query
     *   @param String $query       SOQL Query string
     **/
     public function query($query){
 
+        $this->query = $query;
 
-        $url = $this->baseUrl . '/services/data/'.$this->apiVersion.'/query/?q=' . urlencode($query);
+        $url = $this->baseUrl . '/services/data/'.$this->apiVersion.'/query/?q=' . urlencode($this->query);
 
         $params = [
             'headers' => [
                 "Authorization"=> "Bearer ".$this->accessToken,
             ],
             "query"=>[
-                "q"=>$query
+                "q"=>$this->query
             ],
             "debug"=>false,
         ];
 
-        $response = $this->executeQuery($url, $params);
+        $response = $this->postQuery($url, $params);
 
         $results = $response['records'];
 
@@ -78,7 +83,7 @@ class Client{
 
                 $url = $this->baseUrl . '/' . $nextRequest;
 
-                $response = $this->executeQuery($url, $params);
+                $response = $this->postQuery($url, $params);
 
                 $results = array_merge($results,$response['records']);
 
@@ -90,8 +95,90 @@ class Client{
 
     }
 
+    /**
+    *   Performs a single SOQL Query.
+    *   Be careful, if salesforce paginate the result you will 
+    *   need call nextRecordMethods to retrieve the data.
+    *   @param String $query       SOQL Query string
+    **/
+    public function singleQuery($query){
 
-    public function executeQuery($url, $params){
+        $this->query = $query;
+
+        $url = $this->baseUrl . '/services/data/'.$this->apiVersion.'/query/?q=' . urlencode($this->query);
+
+        $params = [
+            'headers' => [
+                "Authorization"=> "Bearer ".$this->accessToken,
+            ],
+            "query"=>[
+                "q"=>$this->query
+            ],
+            "debug"=>false,
+        ];
+
+        $response = $this->postQuery($url, $params);
+        $results = $response['records'];
+
+        if(array_key_exists("nextRecordsUrl",$response)){
+
+            $this->nextRecordsUrl = $this->baseUrl . '/' . $response['nextRecordsUrl'];
+            $done = "false";          
+
+        }else{
+
+            $this->nextRecordsUrl = null;
+            $done = "true";
+
+        }
+
+        return array("results"=>$results,"done"=>$done);
+
+    }
+
+
+    /**
+    *   Performs a SOQL Query for the next page result.
+    *   This method only will work after you perform SingleQuery method
+    *   and the result be paginated by Salesforce.
+    **/
+    public function nextRecordsQuery(){
+
+        $params = [
+            'headers' => [
+                "Authorization"=> "Bearer ".$this->accessToken,
+            ],
+            "query"=>[
+                "q"=>$this->query
+            ],
+            "debug"=>false,
+        ];
+
+        $response = $this->postQuery($this->nextRecordsUrl, $params);
+        $results = $response['records'];
+        
+        if(array_key_exists("nextRecordsUrl",$response)){
+
+            $this->nextRecordsUrl = $this->baseUrl . '/' . $response['nextRecordsUrl'];
+            $done = "false";          
+
+        }else{
+
+            $this->nextRecordsUrl = null;
+            $done = "true";
+
+        }
+
+        return array("results"=>$results,"done"=>$done);
+
+    }
+
+    /**
+    *   Performs a SOQL Query for the next page result.
+    *   @param String $url       Salesforce URL that will be posted.
+    *   @param String $params    Parameters used on post.
+    **/
+    public function postQuery($url, $params){
 
         $response = json_decode($this->httpClient->request("GET",$url,$params)->getResposeBody(),true);
 
@@ -140,7 +227,7 @@ class Client{
 
 
     /**
-    *   Retreive all objects.
+    *   Retreive all objects, full version.
     **/
     public function getAllObjects(){
 
@@ -161,11 +248,11 @@ class Client{
 
 
     /**
-    *   Retreive all objects.
+    *   Retreive all objects names.
     **/
     public function getAllObjectsNames(){
 
-        $objectsList = $this->getAllObjects($object);
+        $objectsList = $this->getAllObjects();
 
 
         foreach($objectsList["sobjects"] as $object){
