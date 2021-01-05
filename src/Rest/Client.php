@@ -12,7 +12,7 @@ class Client{
 
     private $basePath = "/services/data/";
 
-    private $apiVersion = "v42.0";
+    private $apiVersion = "v50.0";
 
     private $nextRecordsUrl;
 
